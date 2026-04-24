@@ -52,8 +52,8 @@ export default async function ProfilePage() {
                   <List size={14} />
                 </IconTile>
               }
-              title="Регулярные события"
-              subtitle={`${events.length} запланированных`}
+              title="Запланированные"
+              subtitle={`${events.length} событий + платежи по картам`}
               trailingTop={<ChevronRight size={14} className="text-text-4" />}
               href="/events"
             />

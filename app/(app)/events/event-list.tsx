@@ -55,7 +55,7 @@ export function EventList({ events }: { events: EventItem[] }) {
   if (events.length === 0) {
     return (
       <div className="text-sm text-text-3 text-center py-12">
-        Регулярных событий пока нет
+        Запланированных событий пока нет
       </div>
     );
   }

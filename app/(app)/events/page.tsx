@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { listAccounts } from "@/lib/db/accounts";
 import { listEvents } from "@/lib/db/events";
+import { CreditCardPayments } from "./credit-card-payments";
 import { EventList } from "./event-list";
 import { NewEventForm } from "./new-event-form";
 
@@ -28,8 +29,9 @@ export default async function EventsPage() {
 
   return (
     <>
-      <Header title="Регулярные события" left={<BackLink href="/profile" />} />
+      <Header title="Запланированные" left={<BackLink href="/profile" />} />
       <main className="flex-1 overflow-y-auto px-4 py-4">
+        <CreditCardPayments accounts={accounts} />
         <NewEventForm
           accounts={accounts.map((a) => ({
             id: a.id,

@@ -59,6 +59,9 @@ cd "$DEPLOY_DIR"
 if [ -z "${AUTH_SECRET:-}" ]; then
   AUTH_SECRET="$(openssl rand -base64 32)"
 fi
+if [ -z "${CONTROL_SECRET:-}" ]; then
+  CONTROL_SECRET="$(openssl rand -hex 32)"
+fi
 log "writing .env.production ..."
 umask 077
 cat > .env.production <<EOF
@@ -66,6 +69,7 @@ DOMAIN=$DOMAIN
 AUTH_SECRET=$AUTH_SECRET
 AUTH_URL=https://$DOMAIN
 AUTH_TRUST_HOST=true
+CONTROL_SECRET=$CONTROL_SECRET
 INITIAL_USER_EMAIL=$INITIAL_USER_EMAIL
 INITIAL_USER_NAME=$INITIAL_USER_NAME
 INITIAL_USER_PASSWORD=$INITIAL_USER_PASSWORD

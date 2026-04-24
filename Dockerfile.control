@@ -1,0 +1,16 @@
+# syntax=docker/dockerfile:1.4
+FROM alpine:3.20
+
+RUN apk add --no-cache \
+      python3 \
+      git \
+      ca-certificates \
+      docker-cli \
+      docker-cli-compose \
+      openssh-client
+
+WORKDIR /srv
+COPY scripts/control_server.py /srv/control_server.py
+
+EXPOSE 9999
+CMD ["python3", "-u", "/srv/control_server.py"]

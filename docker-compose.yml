@@ -35,6 +35,25 @@ services:
       - caddy_config:/config
     depends_on:
       - app
+      - control
+    networks:
+      - finance
+
+  control:
+    build:
+      context: .
+      dockerfile: Dockerfile.control
+    image: finance-control:latest
+    container_name: finance-control
+    restart: unless-stopped
+    environment:
+      - CONTROL_SECRET=${CONTROL_SECRET}
+      - REPO_DIR=/opt/finance
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/finance:/opt/finance
+    expose:
+      - "9999"
     networks:
       - finance
 

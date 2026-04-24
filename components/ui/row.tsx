@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export function Row({
@@ -8,8 +9,10 @@ export function Row({
   trailingTop,
   trailingBottom,
   onClick,
+  href,
   className,
   dense,
+  disabled,
 }: {
   leading?: React.ReactNode;
   title: React.ReactNode;
@@ -17,8 +20,10 @@ export function Row({
   trailingTop?: React.ReactNode;
   trailingBottom?: React.ReactNode;
   onClick?: () => void;
+  href?: string;
   className?: string;
   dense?: boolean;
+  disabled?: boolean;
 }) {
   const inner = (
     <>
@@ -45,18 +50,38 @@ export function Row({
   );
   const base = "flex items-center gap-3 w-full text-left";
   const padding = dense ? "px-4 py-3" : "px-[18px] py-4";
+  const interactive = "cursor-pointer hover:bg-surface-2/40 transition-colors";
+  const disabledCls = "opacity-50 cursor-not-allowed";
+
+  if (disabled) {
+    return (
+      <div
+        data-slot="row"
+        aria-disabled="true"
+        className={cn(base, padding, disabledCls, className)}
+      >
+        {inner}
+      </div>
+    );
+  }
+  if (href) {
+    return (
+      <Link
+        href={href}
+        data-slot="row"
+        className={cn(base, padding, interactive, className)}
+      >
+        {inner}
+      </Link>
+    );
+  }
   if (onClick) {
     return (
       <button
         type="button"
         data-slot="row"
         onClick={onClick}
-        className={cn(
-          base,
-          padding,
-          "cursor-pointer hover:bg-surface-2/40 transition-colors",
-          className,
-        )}
+        className={cn(base, padding, interactive, className)}
       >
         {inner}
       </button>

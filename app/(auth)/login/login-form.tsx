@@ -34,6 +34,16 @@ export function LoginForm() {
           required
         />
       </div>
+      <label className="flex items-center gap-2 text-sm text-text-2 select-none cursor-pointer">
+        <input
+          type="checkbox"
+          name="remember"
+          value="true"
+          defaultChecked
+          className="size-4 rounded border-hairline bg-surface-2 accent-accent cursor-pointer"
+        />
+        Оставаться в системе
+      </label>
       {state?.error && (
         <p className="text-sm text-neg" role="alert">
           {state.error}

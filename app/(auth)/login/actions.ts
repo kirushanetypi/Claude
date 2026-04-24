@@ -13,6 +13,7 @@ export async function loginAction(
     await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
+      remember: formData.get("remember") === "true" ? "true" : "false",
       redirectTo: "/",
     });
     return null;

@@ -1,4 +1,4 @@
-import { ChevronRight, Calendar, Download, List, Bell, Eye } from "lucide-react";
+import { ChevronRight, Calendar, List, Bell, Eye } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Header, BackLink } from "@/components/ui/header";
 import { IconTile } from "@/components/ui/icon-tile";
@@ -11,6 +11,7 @@ import { listEvents } from "@/lib/db/events";
 import { listTransactions } from "@/lib/db/transactions";
 import { ThemePicker } from "./theme-picker";
 import { LogoutButton } from "./logout-button";
+import { ExportDataRow } from "./export-data-row";
 
 export default async function ProfilePage() {
   const user = await requireUser();
@@ -54,7 +55,7 @@ export default async function ProfilePage() {
               title="Регулярные события"
               subtitle={`${events.length} запланированных`}
               trailingTop={<ChevronRight size={14} className="text-text-4" />}
-              onClick={undefined}
+              href="/events"
             />
             <div className="border-t border-hairline" />
             <Row
@@ -66,18 +67,10 @@ export default async function ProfilePage() {
               title="Транзакции"
               subtitle={`${txs.length} всего`}
               trailingTop={<ChevronRight size={14} className="text-text-4" />}
+              href="/history"
             />
             <div className="border-t border-hairline" />
-            <Row
-              leading={
-                <IconTile size={30} square>
-                  <Download size={14} />
-                </IconTile>
-              }
-              title="Экспорт данных"
-              subtitle="JSON"
-              trailingTop={<ChevronRight size={14} className="text-text-4" />}
-            />
+            <ExportDataRow count={txs.length} />
           </Card>
         </section>
 
@@ -91,8 +84,8 @@ export default async function ProfilePage() {
                 </IconTile>
               }
               title="Скрыть балансы на главной"
-              subtitle="Выключено"
-              trailingTop={<ChevronRight size={14} className="text-text-4" />}
+              subtitle="Скоро"
+              disabled
             />
             <div className="border-t border-hairline" />
             <Row
@@ -102,8 +95,8 @@ export default async function ProfilePage() {
                 </IconTile>
               }
               title="Уведомления"
-              subtitle="Не настроены"
-              trailingTop={<ChevronRight size={14} className="text-text-4" />}
+              subtitle="Скоро"
+              disabled
             />
           </Card>
         </section>
@@ -117,10 +110,7 @@ export default async function ProfilePage() {
 
         <section className="px-4 pb-8">
           <Card pad={false}>
-            <Row
-              title="Помощь"
-              trailingTop={<ChevronRight size={14} className="text-text-4" />}
-            />
+            <Row title="Помощь" subtitle="Скоро" disabled />
             <div className="border-t border-hairline" />
             <LogoutButton />
           </Card>

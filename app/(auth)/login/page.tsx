@@ -2,11 +2,16 @@ import { LoginForm } from "./login-form";
 
 export default function LoginPage() {
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
-      <div className="w-full max-w-sm flex flex-col gap-6 rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-semibold tracking-tight">Финансы</h1>
-          <p className="text-sm text-muted-foreground">Вход в аккаунт</p>
+    <main className="flex flex-1 items-center justify-center px-4 py-10">
+      <div className="w-full max-w-sm flex flex-col gap-7 rounded-[var(--radius-lg)] border border-hairline bg-surface p-6">
+        <div className="flex flex-col gap-2">
+          <div className="eyebrow text-text-3">ФИНАНСЫ</div>
+          <h1 className="text-2xl font-medium tracking-tight">
+            С возвращением
+          </h1>
+          <p className="text-sm text-text-3">
+            Введи email и пароль, чтобы продолжить.
+          </p>
         </div>
         <LoginForm />
       </div>

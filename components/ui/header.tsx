@@ -57,14 +57,12 @@ export function BackLink({
 export function IconButton({
   children,
   onClick,
-  asChild,
   href,
   "aria-label": ariaLabel,
   className,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
-  asChild?: boolean;
   href?: string;
   "aria-label"?: string;
   className?: string;

@@ -14,7 +14,7 @@ export function LoginForm() {
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
@@ -24,7 +24,7 @@ export function LoginForm() {
           required
         />
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">Пароль</Label>
         <Input
           id="password"
@@ -35,13 +35,16 @@ export function LoginForm() {
         />
       </div>
       {state?.error && (
-        <p className="text-sm text-destructive" role="alert">
+        <p className="text-sm text-neg" role="alert">
           {state.error}
         </p>
       )}
-      <Button type="submit" disabled={isPending}>
+      <Button type="submit" size="lg" full disabled={isPending}>
         {isPending ? "Входим…" : "Войти"}
       </Button>
+      <p className="text-xs text-text-4 text-center">
+        Регистрация закрыта — аккаунты создаются CLI.
+      </p>
     </form>
   );
 }

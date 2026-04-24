@@ -103,7 +103,7 @@ export function CreditCardDetail({
           <Card>
             <div className="eyebrow text-pos mb-1">ГРЕЙС ЗАКРЫТ</div>
             <div className="text-sm text-text-2">
-              Выписка на {fmtDate(new Date(s.lastStatementDate ?? Date.now()))} погашена полностью.
+              Выписка {s.lastStatementDate ? `на ${fmtDate(new Date(s.lastStatementDate))}` : "текущего периода"} погашена полностью.
             </div>
           </Card>
         </section>

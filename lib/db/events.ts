@@ -70,6 +70,24 @@ export async function listEvents(db: DB, userId: string) {
     .where(eq(scheduledEvents.userId, userId));
 }
 
+export async function deleteEvent(db: DB, userId: string, id: string): Promise<void> {
+  await db
+    .delete(scheduledEvents)
+    .where(and(eq(scheduledEvents.userId, userId), eq(scheduledEvents.id, id)));
+}
+
+export async function toggleEventActive(
+  db: DB,
+  userId: string,
+  id: string,
+  isActive: boolean,
+): Promise<void> {
+  await db
+    .update(scheduledEvents)
+    .set({ isActive })
+    .where(and(eq(scheduledEvents.userId, userId), eq(scheduledEvents.id, id)));
+}
+
 export async function loadFactLookup(
   db: DB,
   userId: string,

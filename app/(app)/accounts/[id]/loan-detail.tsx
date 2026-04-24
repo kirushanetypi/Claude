@@ -6,7 +6,6 @@ import { Calendar, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { createTransactionAction } from "@/lib/actions/transactions";
 import { formatRubles } from "@/lib/money";
 import { daysUntil, fmtDate } from "@/lib/dates";
 import {

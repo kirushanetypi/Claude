@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Личные финансы · 3 направления</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: 'Geist', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  * { box-sizing: border-box; }
+  ::-webkit-scrollbar { display: none; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="tokens.jsx"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="ui.jsx"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="screens.jsx"></script>
+
+<script type="text/babel">
+  const { useState } = React;
+
+  // ─────────────────────────────────────────────────────────────
+  // Per-artboard bank app. Each artboard is a mini-app anchored at
+  // a specific screen; the user can navigate inside the frame and
+  // reach any of the 9 screens.
+  // ─────────────────────────────────────────────────────────────
+  function Frame({ t, screen, param, sheet }) {
+    return (
+      <div style={{
+        width: 340, height: 720, background: '#000',
+        borderRadius: 36, padding: 8, position: 'relative', overflow: 'hidden',
+        boxShadow: '0 30px 60px rgba(0,0,0,0.25), 0 0 0 0.5px rgba(0,0,0,0.4)',
+      }}>
+        {/* dynamic island */}
+        <div style={{
+          position: 'absolute', top: 18, left: '50%', transform: 'translateX(-50%)',
+          width: 104, height: 30, borderRadius: 20, background: '#000', zIndex: 50,
+        }}/>
+        {/* screen */}
+        <div style={{
+          width: '100%', height: '100%', borderRadius: 28, overflow: 'hidden',
+          position: 'relative', background: t.bg,
+        }}>
+          <InlineApp t={t} initialScreen={screen} initialParam={param} initialSheet={sheet}/>
+        </div>
+        {/* home indicator */}
+        <div style={{
+          position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
+          width: 120, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.4)', zIndex: 100,
+        }}/>
+      </div>
+    );
+  }
+
+  // Same as BankApp but with initial state injection
+  function InlineApp({ t, initialScreen, initialParam, initialSheet }) {
+    const [screen, setScreen] = useState(initialScreen || 'dashboard');
+    const [param, setParam] = useState(initialParam || null);
+    const [sheet, setSheet] = useState(initialSheet || null);
+
+    const nav = {
+      go: (s, p) => { setScreen(s); setParam(p ?? null); setSheet(null); },
+      push: (s, p) => { setScreen(s); setParam(p ?? null); setSheet(null); },
+      param,
+      openSheet: (kind) => setSheet(kind),
+      closeSheet: () => setSheet(null),
+    };
+
+    let content;
+    switch (screen) {
+      case 'dashboard': content = <ScreenDashboard t={t} nav={nav}/>; break;
+      case 'calendar':  content = <ScreenCalendar t={t} nav={nav}/>; break;
+      case 'account':   content = <ScreenAccount t={t} nav={nav}/>; break;
+      case 'history':   content = <ScreenHistory t={t} nav={nav}/>; break;
+      case 'add':       content = <ScreenAddTx t={t} nav={nav}/>; break;
+      case 'profile':   content = <ScreenProfile t={t} nav={nav}/>; break;
+      default: content = <ScreenDashboard t={t} nav={nav}/>;
+    }
+
+    const tabs = [
+      { key: 'dashboard', label: t.name === 'Terminal' ? 'home' : 'Главная',   icon: <Icons.Home size={18}/> },
+      { key: 'calendar',  label: t.name === 'Terminal' ? 'forecast' : 'Календарь', icon: <Icons.Calendar size={18}/> },
+      { key: 'add',       label: t.name === 'Terminal' ? 'new.tx' : 'Добавить',  icon: <Icons.Plus size={18}/> },
+      { key: 'history',   label: t.name === 'Terminal' ? 'history' : 'История',  icon: <Icons.ChartLine size={18}/> },
+      { key: 'profile',   label: t.name === 'Terminal' ? 'profile' : 'Профиль',  icon: <Icons.User size={18}/> },
+    ];
+
+    const tabKey = ['dashboard','calendar','add','history','profile'].includes(screen) ? screen : 'dashboard';
+
+    return (
+      <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', background: t.bg, fontFamily: t.allMono ? TYPE.mono : TYPE.sans }}>
+        <div style={{ height: 44, flexShrink: 0 }}/>
+        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {content}
+        </div>
+        <TabBar t={t} items={tabs} value={tabKey} onChange={nav.go}/>
+        {sheet && <BottomSheet t={t} kind={sheet} onClose={nav.closeSheet} nav={nav}/>}
+      </div>
+    );
+  }
+
+  // Theme swatch tile (intro row for each direction)
+  function ThemeCard({ t }) {
+    const typeSample = t.displayFont && t.displayFont.includes('serif') ? 'Instrument Serif'
+                    : t.allMono ? 'Geist Mono' : 'Geist';
+    return (
+      <div style={{ width: 340, height: 720, background: t.bg, color: t.text,
+        fontFamily: t.allMono ? TYPE.mono : TYPE.sans, padding: 22,
+        borderRadius: t.radius, display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        border: `0.5px solid ${t.hairline}` }}>
+        <div>
+          <div style={{ ...txt.label, color: t.text3, marginBottom: 8 }}>НАПРАВЛЕНИЕ</div>
+          <div style={{ ...dsp(t, 44), color: t.text, lineHeight: 1 }}>{t.name}</div>
+          <div style={{ ...txt.body, color: t.text2, marginTop: 6 }}>{t.tagline}</div>
+        </div>
+        <div>
+          <div style={{ ...txt.label, color: t.text3, marginBottom: 10 }}>ПАЛИТРА</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginBottom: 12 }}>
+            {['bg','surface','surface2','surface3'].map(k => (
+              <div key={k} style={{ background: t[k], height: 44, border: `0.5px solid ${t.hairline}`, display: 'flex', alignItems: 'flex-end', padding: 4 }}>
+                <div style={{ fontSize: 8, fontFamily: TYPE.mono, color: t.text3 }}>{k}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginBottom: 16 }}>
+            {['accent','pos','neg','warn'].map(k => (
+              <div key={k} style={{ background: t[k], height: 28, display: 'flex', alignItems: 'flex-end', padding: 4 }}>
+                <div style={{ fontSize: 8, fontFamily: TYPE.mono, color: t.mode === 'light' ? '#fff' : t.accentInk }}>{k}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ ...txt.label, color: t.text3, marginBottom: 6 }}>ТИПОГРАФИКА</div>
+          <div style={{ ...dsp(t, 34), color: t.text, lineHeight: 1 }}>147 820 ₽</div>
+          <div style={{ ...txt.bodyS, color: t.text3, marginTop: 2 }}>{typeSample} · tabular nums</div>
+
+          <div style={{ ...txt.label, color: t.text3, marginTop: 14, marginBottom: 6 }}>ТОКЕНЫ</div>
+          <div style={{ fontFamily: TYPE.mono, fontSize: 10, color: t.text3, lineHeight: 1.6 }}>
+            radius {t.radius} · density {t.density} · {t.mode}<br/>
+            borders {t.borderStyle}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Configuration: which (variant, screen) pairs to render ──
+  const VARIANTS = ['A', 'B', 'C'];
+  const SCREENS = [
+    { id: 'intro',     label: '00 · Палитра' },
+    { id: 'dashboard', label: '01 · Главная' },
+    { id: 'calendar',  label: '02 · Календарь + прогноз' },
+    { id: 'credit',    label: '03 · Кредитка · грейс', go: { screen: 'account', param: 'credit' } },
+    { id: 'loan',      label: '04 · Досрочка по кредиту', go: { screen: 'account', param: 'loan' } },
+    { id: 'savings',   label: '05 · Накопительный счёт', go: { screen: 'account', param: 'savings' } },
+    { id: 'debit',     label: '06 · Дебетовая карта', go: { screen: 'account', param: 'debit' } },
+    { id: 'history',   label: '07 · История' },
+    { id: 'add',       label: '08 · Добавить операцию', go: { screen: 'add' } },
+    { id: 'sheet',     label: '09 · Быстрый ввод (расход)', go: { screen: 'dashboard', sheet: 'expense' } },
+    { id: 'profile',   label: '10 · Профиль' },
+  ];
+
+  function App() {
+    return (
+      <DesignCanvas>
+        {SCREENS.map(sc => (
+          <DCSection
+            key={sc.id}
+            id={sc.id}
+            title={sc.label}
+            subtitle={null}
+          >
+            {VARIANTS.map(v => {
+              const t = TOKENS[v];
+              return (
+                <DCArtboard
+                  key={`${sc.id}-${v}`}
+                  id={`${sc.id}-${v}`}
+                  label={`${v} · ${t.name}`}
+                  width={340}
+                  height={720}
+                >
+                  {sc.id === 'intro'
+                    ? <ThemeCard t={t}/>
+                    : <Frame t={t}
+                        screen={sc.go?.screen ?? sc.id}
+                        param={sc.go?.param}
+                        sheet={sc.go?.sheet}
+                      />
+                  }
+                </DCArtboard>
+              );
+            })}
+          </DCSection>
+        ))}
+      </DesignCanvas>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

@@ -13,6 +13,25 @@ import { cn } from "@/lib/utils";
 
 type Kind = "expense" | "income" | "transfer";
 
+function toDateInputValue(ms: number): string {
+  const d = new Date(ms);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function dateInputToMs(value: string): number {
+  // Treat the picked date as local noon to avoid TZ-day shifts.
+  const [y, m, d] = value.split("-").map(Number);
+  if (!y || !m || !d) return Date.now();
+  return new Date(y, m - 1, d, 12, 0, 0, 0).getTime();
+}
+
+function shiftDays(value: string, delta: number): string {
+  return toDateInputValue(dateInputToMs(value) + delta * 86_400_000);
+}
+
 type Account = {
   id: string;
   type: "debit" | "savings" | "creditCard" | "loan";
@@ -33,13 +52,23 @@ const EXPENSE_CATEGORIES = [
 const INCOME_CATEGORIES = ["Зарплата", "Аванс", "Перевод", "Возврат", "Другое"];
 const QUICK_AMOUNTS = [100, 500, 1000, 5000, 10000];
 
-export function AddForm({ accounts }: { accounts: Account[] }) {
+export function AddForm({
+  accounts,
+  prefilledDateMs,
+}: {
+  accounts: Account[];
+  prefilledDateMs?: number;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [kind, setKind] = useState<Kind>("expense");
   const [amount, setAmount] = useState("");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<string>("Продукты");
+  const [todayStr] = useState(() => toDateInputValue(Date.now()));
+  const [date, setDate] = useState(() =>
+    prefilledDateMs ? toDateInputValue(prefilledDateMs) : toDateInputValue(Date.now()),
+  );
 
   const firstDebit = accounts.find((a) => a.type === "debit");
   const firstExpenseAccount = accounts.find(
@@ -85,9 +114,14 @@ export function AddForm({ accounts }: { accounts: Account[] }) {
       return;
     }
     const kopecks = Math.round(n * 100);
+    const dateMs = dateInputToMs(date);
+    if (!Number.isFinite(dateMs)) {
+      setError("Укажи дату");
+      return;
+    }
     const base = {
       amount: kopecks,
-      date: Date.now(),
+      date: dateMs,
       title: title.trim() || (kind === "income" ? "Доход" : kind === "expense" ? "Расход" : "Перевод"),
       category: kind === "transfer" ? undefined : category,
     };
@@ -198,6 +232,29 @@ export function AddForm({ accounts }: { accounts: Account[] }) {
             className="h-11 bg-surface border border-hairline rounded-[var(--radius)] px-3 text-sm outline-none focus:border-primary"
           />
         </label>
+      </div>
+
+      <div>
+        <label className="flex flex-col gap-1.5">
+          <span className="eyebrow text-text-3">ДАТА</span>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="h-11 bg-surface border border-hairline rounded-[var(--radius)] px-3 text-sm outline-none focus:border-primary tabular"
+          />
+        </label>
+        <div className="flex gap-2 flex-wrap mt-2">
+          <Chip active={date === todayStr} onClick={() => setDate(todayStr)}>
+            Сегодня
+          </Chip>
+          <Chip onClick={() => setDate(shiftDays(todayStr, -1))}>Вчера</Chip>
+          <Chip onClick={() => setDate(shiftDays(todayStr, 1))}>Завтра</Chip>
+          <Chip onClick={() => setDate(shiftDays(date, -1))}>−1 день</Chip>
+          <Chip onClick={() => setDate(shiftDays(date, 1))}>+1 день</Chip>
+          <Chip onClick={() => setDate(shiftDays(date, -7))}>−7 дней</Chip>
+          <Chip onClick={() => setDate(shiftDays(date, 7))}>+7 дней</Chip>
+        </div>
       </div>
 
       {kind !== "transfer" && (

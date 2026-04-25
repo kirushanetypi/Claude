@@ -1,12 +1,18 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Row } from "@/components/ui/row";
 import { formatRubles } from "@/lib/money";
 import { DOW_RU, MONTHS_RU_FULL, fmtDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
+
+const MONTHS_BACK = 1;
+const MONTHS_FORWARD = 2;
 
 type ForecastPoint = { dateMs: number; balance: number };
 
@@ -33,13 +39,14 @@ export function CalendarView({
 }) {
   const today = useMemo(() => new Date(initialTodayMs), [initialTodayMs]);
   const [selectedMs, setSelectedMs] = useState<number>(initialTodayMs);
+  const [monthOffset, setMonthOffset] = useState(0);
   const selected = new Date(selectedMs);
 
-  // build 2 months starting with current month
   const months = useMemo(() => {
-    const m0 = new Date(today.getFullYear(), today.getMonth(), 1);
-    const m1 = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    return [m0, m1].map((m) => {
+    const total = MONTHS_BACK + 1 + MONTHS_FORWARD;
+    return Array.from({ length: total }, (_, i) => {
+      const delta = i - MONTHS_BACK + monthOffset;
+      const m = new Date(today.getFullYear(), today.getMonth() + delta, 1);
       const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
       const firstDow = (m.getDay() + 6) % 7; // Mon=0
       const cells: (Date | null)[] = [];
@@ -48,7 +55,7 @@ export function CalendarView({
         cells.push(new Date(m.getFullYear(), m.getMonth(), d));
       return { month: m, cells };
     });
-  }, [today]);
+  }, [today, monthOffset]);
 
   const forecastByDay = useMemo(() => {
     const m = new Map<string, number>();
@@ -130,6 +137,32 @@ export function CalendarView({
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="px-4 pt-1 pb-1 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setMonthOffset((v) => v - 1)}
+          aria-label="Предыдущий период"
+          className="size-9 rounded-full bg-surface-2 border border-hairline-2 flex items-center justify-center text-text-2 hover:text-foreground transition-colors"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setMonthOffset(0)}
+          className="eyebrow text-text-3 hover:text-foreground transition-colors"
+        >
+          СЕГОДНЯ
+        </button>
+        <button
+          type="button"
+          onClick={() => setMonthOffset((v) => v + 1)}
+          aria-label="Следующий период"
+          className="size-9 rounded-full bg-surface-2 border border-hairline-2 flex items-center justify-center text-text-2 hover:text-foreground transition-colors"
+        >
+          <ChevronRight size={16} />
+        </button>
       </section>
 
       {months.map((m, mi) => (
@@ -219,12 +252,29 @@ export function CalendarView({
       ))}
 
       <section className="px-4 pt-3 pb-6">
-        <div className="eyebrow text-text-3 mb-2">
-          {fmtDate(selected, { long: true }).toUpperCase()} · ОПЕРАЦИИ
+        <div className="flex items-center justify-between mb-2">
+          <div className="eyebrow text-text-3">
+            {fmtDate(selected, { long: true }).toUpperCase()} · ОПЕРАЦИИ
+          </div>
+          <Link
+            href={`/add?date=${selectedMs}`}
+            className="inline-flex items-center gap-1 text-xs text-primary hover:opacity-80"
+          >
+            <Plus size={14} />
+            Добавить
+          </Link>
         </div>
         {selectedEvents.length === 0 ? (
-          <div className="text-sm text-text-4 text-center py-6">
-            Нет операций
+          <div className="flex flex-col items-center gap-3 py-6">
+            <div className="text-sm text-text-4 text-center">
+              Нет операций на эту дату
+            </div>
+            <Link href={`/add?date=${selectedMs}`}>
+              <Button variant="secondary" size="sm">
+                <Plus size={14} />
+                Добавить операцию
+              </Button>
+            </Link>
           </div>
         ) : (
           <Card pad={false}>

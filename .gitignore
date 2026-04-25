@@ -51,3 +51,6 @@ next-env.d.ts
 # drizzle migration snapshots cache (keep generated SQL, ignore meta)
 /drizzle/meta/
 
+# claude code local overrides
+.claude/settings.local.json
+

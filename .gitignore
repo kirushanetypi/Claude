@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -45,7 +46,11 @@ next-env.d.ts
 *.db-journal
 *.db-wal
 *.db-shm
+/data/
 
 # drizzle migration snapshots cache (keep generated SQL, ignore meta)
 /drizzle/meta/
+
+# claude code local overrides
+.claude/settings.local.json
 

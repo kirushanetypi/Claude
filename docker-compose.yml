@@ -1,0 +1,67 @@
+services:
+  app:
+    build: .
+    image: finance-app:latest
+    container_name: finance-app
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=/data/app.db
+      - AUTH_URL=https://${DOMAIN}
+      - AUTH_TRUST_HOST=true
+      - AUTH_SECRET=${AUTH_SECRET}
+      - INITIAL_USER_EMAIL=${INITIAL_USER_EMAIL:-}
+      - INITIAL_USER_NAME=${INITIAL_USER_NAME:-}
+      - INITIAL_USER_PASSWORD=${INITIAL_USER_PASSWORD:-}
+    volumes:
+      - app_data:/data
+    expose:
+      - "3000"
+    networks:
+      - finance
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: finance-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+      - control
+    networks:
+      - finance
+
+  control:
+    build:
+      context: .
+      dockerfile: Dockerfile.control
+    image: finance-control:latest
+    container_name: finance-control
+    restart: unless-stopped
+    environment:
+      - CONTROL_SECRET=${CONTROL_SECRET}
+      - REPO_DIR=/opt/finance
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/finance:/opt/finance
+    expose:
+      - "9999"
+    networks:
+      - finance
+
+networks:
+  finance:
+    driver: bridge
+
+volumes:
+  app_data:
+  caddy_data:
+  caddy_config:

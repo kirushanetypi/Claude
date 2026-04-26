@@ -7,6 +7,7 @@ import { Row } from "@/components/ui/row";
 import { formatRubles } from "@/lib/money";
 import { DOW_RU, MONTHS_RU_FULL, fmtDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
+import { DayAddForm } from "./day-add-form";
 
 type ForecastPoint = { dateMs: number; balance: number };
 
@@ -20,16 +21,20 @@ type DayEvent = {
   title?: string | null;
 };
 
+type AccountForForm = { id: string; type: string; name: string };
+
 export function CalendarView({
   initialTodayMs,
   forecast,
   events,
   accountNames,
+  accounts,
 }: {
   initialTodayMs: number;
   forecast: ForecastPoint[];
   events: DayEvent[];
   accountNames: Record<string, string>;
+  accounts: AccountForForm[];
 }) {
   const today = useMemo(() => new Date(initialTodayMs), [initialTodayMs]);
   const [selectedMs, setSelectedMs] = useState<number>(initialTodayMs);
@@ -269,6 +274,7 @@ export function CalendarView({
             })}
           </Card>
         )}
+        <DayAddForm defaultDate={selected} accounts={accounts} />
       </section>
     </>
   );

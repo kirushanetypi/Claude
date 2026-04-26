@@ -79,6 +79,11 @@ export default async function CalendarPage() {
   }));
 
   const accountNames = Object.fromEntries(accounts.map((a) => [a.id, a.name]));
+  const accountsForForm = accounts.map((a) => ({
+    id: a.id,
+    type: a.type,
+    name: a.name,
+  }));
 
   return (
     <>
@@ -89,6 +94,7 @@ export default async function CalendarPage() {
           forecast={series}
           events={payload}
           accountNames={accountNames}
+          accounts={accountsForForm}
         />
       </main>
     </>

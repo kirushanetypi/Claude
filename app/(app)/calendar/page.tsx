@@ -79,7 +79,7 @@ export default async function CalendarPage() {
   const series: { dateMs: number; balance: number }[] = [];
   if (mainDebit) {
     // historical: start from today balance, walk back
-    const txByDay = new Map<string, number>(); // delta on this day
+    const txByDay = new Map<number, number>(); // delta on this day
     for (const t of pastTransactions) {
       const dt = startOfDay(t.date);
       const k = dt.getTime();

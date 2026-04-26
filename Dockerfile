@@ -7,7 +7,8 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 build-essential \
  && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+    npm ci --no-audit --no-fund --prefer-offline
 
 # ─── build ─────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS builder
@@ -15,7 +16,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache,id=nextjs-build-cache,sharing=locked \
+    npm run build
 
 # ─── runner ────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS runner

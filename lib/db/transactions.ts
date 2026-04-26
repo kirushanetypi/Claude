@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { z } from "zod";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
@@ -386,3 +386,23 @@ export async function listTransactions(
 }
 
 export { InputError as TransactionInputError };
+
+/** List transactions for the given user within [fromMs, toMs] range, oldest first. */
+export async function listTransactionsByRange(
+  db: DB,
+  userId: string,
+  fromMs: number,
+  toMs: number,
+) {
+  return db
+    .select()
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        gte(transactions.date, new Date(fromMs)),
+        lte(transactions.date, new Date(toMs)),
+      ),
+    )
+    .orderBy(transactions.date);
+}

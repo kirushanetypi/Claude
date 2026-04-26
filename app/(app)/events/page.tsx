@@ -2,16 +2,18 @@ import { Header, BackLink } from "@/components/ui/header";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { listAccounts } from "@/lib/db/accounts";
-import { listEvents } from "@/lib/db/events";
+import { findOverdueEvents, listEvents } from "@/lib/db/events";
 import { CreditCardPayments } from "./credit-card-payments";
 import { EventList } from "./event-list";
 import { NewEventForm } from "./new-event-form";
+import { OverdueList } from "./overdue-list";
 
 export default async function EventsPage() {
   const user = await requireUser();
-  const [accounts, events] = await Promise.all([
+  const [accounts, events, overdue] = await Promise.all([
     listAccounts(db, user.id),
     listEvents(db, user.id),
+    findOverdueEvents(db, user.id, new Date()),
   ]);
   const byId = new Map(accounts.map((a) => [a.id, a]));
 
@@ -27,10 +29,20 @@ export default async function EventsPage() {
     toAccountName: e.toAccountId ? byId.get(e.toAccountId)?.name ?? null : null,
   }));
 
+  const overdueItems = overdue.map((o) => ({
+    eventId: o.eventId,
+    title: o.title,
+    baseAmount: o.baseAmount,
+    transactionType: o.transactionType,
+    plannedDateMs: o.plannedDateMs,
+    monthKey: o.monthKey,
+  }));
+
   return (
     <>
       <Header title="Запланированные" left={<BackLink href="/profile" />} />
       <main className="flex-1 overflow-y-auto px-4 py-4">
+        <OverdueList items={overdueItems} />
         <CreditCardPayments accounts={accounts} />
         <NewEventForm
           accounts={accounts.map((a) => ({

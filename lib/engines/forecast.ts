@@ -409,3 +409,68 @@ export function forecast(input: ForecastInput): ForecastResult {
 
   return { balances: state.balances, applied: all };
 }
+// === Daily series forecast (added for calendar ±1 year) ===
+// One-pass walk from `today` to `today + days`, recording each account's
+// balance at the end of every day. Avoids O(N²) when caller wants per-day
+// values across a wide horizon.
+
+export type DailyBalancePoint = {
+  dateMs: number;
+  balances: Record<string, number>;
+};
+
+export function forecastDailySeries(input: {
+  accounts: AccountLite[];
+  events: ScheduledEventLite[];
+  facts: FactLookup;
+  today: Date;
+  days: number; // inclusive horizon
+}): DailyBalancePoint[] {
+  const today = startOfDay(input.today);
+  const state = initState(input.accounts);
+
+  // Snapshot for day 0 (today) BEFORE any new events apply — current balance.
+  const series: DailyBalancePoint[] = [
+    { dateMs: today.getTime(), balances: snapshotBalances(state) },
+  ];
+
+  if (input.days <= 0) return series;
+
+  const horizon = addDays(today, input.days);
+  const userEvents = resolveUserEvents(
+    input.events,
+    input.facts,
+    addDays(today, 1),
+    horizon,
+  );
+  const autoEvents = expandCreditCardAutoEvents(
+    input.accounts,
+    addDays(today, 1),
+    horizon,
+  );
+  const all = [...userEvents, ...autoEvents].sort((a, b) => {
+    const byDate = compareAsc(a.date, b.date);
+    if (byDate !== 0) return byDate;
+    return a.sortKey - b.sortKey;
+  });
+
+  let evIdx = 0;
+  for (let i = 1; i <= input.days; i++) {
+    const day = addDays(today, i);
+    while (evIdx < all.length && isSameDay(all[evIdx].date, day)) {
+      const ev = all[evIdx];
+      if (ev.kind === "cc_statement") applyStatement(state, ev, ev.date);
+      else if (ev.kind === "cc_due") applyDue(state, ev);
+      else applyUserEvent(state, ev);
+      evIdx++;
+    }
+    series.push({ dateMs: day.getTime(), balances: snapshotBalances(state) });
+  }
+  return series;
+}
+
+function snapshotBalances(state: SimState): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of state.balances) out[k] = v;
+  return out;
+}

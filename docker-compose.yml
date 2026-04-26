@@ -13,6 +13,7 @@ services:
       - INITIAL_USER_EMAIL=${INITIAL_USER_EMAIL:-}
       - INITIAL_USER_NAME=${INITIAL_USER_NAME:-}
       - INITIAL_USER_PASSWORD=${INITIAL_USER_PASSWORD:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     volumes:
       - app_data:/data
     expose:

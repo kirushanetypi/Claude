@@ -176,7 +176,7 @@ export function NewEventForm({ accounts }: { accounts: Account[] }) {
           </select>
         </div>
         {error && <div className="text-sm text-neg">{error}</div>}
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Button type="button" variant="ghost" full onClick={() => setOpen(false)}>
             Отмена
           </Button>

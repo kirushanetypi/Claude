@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Settings, TrendingUp, Wallet, CreditCard, Building } from "lucide-react";
+import { LineChart, Settings, TrendingUp, Wallet, CreditCard, Building } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Header, IconButton } from "@/components/ui/header";
 import { IconTile } from "@/components/ui/icon-tile";
@@ -8,7 +8,8 @@ import { Sparkline } from "@/components/ui/sparkline";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { listAccounts } from "@/lib/db/accounts";
-import { listEvents, loadFactLookup } from "@/lib/db/events";
+import { findOverdueEvents, listEvents, loadFactLookup } from "@/lib/db/events";
+import { OverdueBanner } from "@/components/overdue-banner";
 import { formatRubles, type Kopecks } from "@/lib/money";
 import {
   forecast,
@@ -113,8 +114,11 @@ function accountBadge(a: AcctRow, today: Date): React.ReactNode {
 
 export default async function DashboardPage() {
   const user = await requireUser();
-  const accounts = await listAccounts(db, user.id);
-  const events = await listEvents(db, user.id);
+  const [accounts, events, overdue] = await Promise.all([
+    listAccounts(db, user.id),
+    listEvents(db, user.id),
+    findOverdueEvents(db, user.id, new Date()),
+  ]);
   const facts = await loadFactLookup(db, user.id, events.map((e) => e.id));
 
   const today = new Date();
@@ -201,8 +205,8 @@ export default async function DashboardPage() {
         }
         right={
           <>
-            <IconButton aria-label="Поиск">
-              <Search size={18} />
+            <IconButton href="/analytics" aria-label="Аналитика">
+              <LineChart size={18} />
             </IconButton>
             <IconButton href="/profile" aria-label="Профиль">
               <Settings size={18} />
@@ -232,6 +236,8 @@ export default async function DashboardPage() {
             </div>
           </div>
         </section>
+
+        <OverdueBanner count={overdue.length} />
 
         {/* Cashflow warning */}
         {cashWarning && (

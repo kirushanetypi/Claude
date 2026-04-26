@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Row } from "@/components/ui/row";
@@ -19,6 +20,7 @@ type DayEvent = {
   accountId: string;
   kind: string;
   title?: string | null;
+  isPast?: boolean;
 };
 
 type AccountForForm = { id: string; type: string; name: string };
@@ -29,31 +31,37 @@ export function CalendarView({
   events,
   accountNames,
   accounts,
+  monthsAhead = 12,
+  monthsBack = 12,
 }: {
   initialTodayMs: number;
   forecast: ForecastPoint[];
   events: DayEvent[];
   accountNames: Record<string, string>;
   accounts: AccountForForm[];
+  monthsAhead?: number;
+  monthsBack?: number;
 }) {
   const today = useMemo(() => new Date(initialTodayMs), [initialTodayMs]);
   const [selectedMs, setSelectedMs] = useState<number>(initialTodayMs);
+  // monthOffset: 0 = current, +1 = next, -1 = previous; bounded by [-monthsBack, +monthsAhead]
+  const [monthOffset, setMonthOffset] = useState<number>(0);
   const selected = new Date(selectedMs);
 
-  // build 2 months starting with current month
-  const months = useMemo(() => {
-    const m0 = new Date(today.getFullYear(), today.getMonth(), 1);
-    const m1 = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    return [m0, m1].map((m) => {
-      const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
-      const firstDow = (m.getDay() + 6) % 7; // Mon=0
-      const cells: (Date | null)[] = [];
-      for (let i = 0; i < firstDow; i++) cells.push(null);
-      for (let d = 1; d <= daysInMonth; d++)
-        cells.push(new Date(m.getFullYear(), m.getMonth(), d));
-      return { month: m, cells };
-    });
-  }, [today]);
+  const visibleMonth = useMemo(() => {
+    return new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+  }, [today, monthOffset]);
+
+  const monthCells = useMemo(() => {
+    const m = visibleMonth;
+    const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+    const firstDow = (m.getDay() + 6) % 7; // Mon=0
+    const cells: (Date | null)[] = [];
+    for (let i = 0; i < firstDow; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++)
+      cells.push(new Date(m.getFullYear(), m.getMonth(), d));
+    return cells;
+  }, [visibleMonth]);
 
   const forecastByDay = useMemo(() => {
     const m = new Map<string, number>();
@@ -78,11 +86,24 @@ export function CalendarView({
   const selectedBalance = forecastByDay.get(dayKey(selected)) ?? null;
   const selectedEvents = eventsByDay.get(dayKey(selected)) ?? [];
 
-  const min = forecast.reduce(
-    (acc, p) => (p.balance < acc.balance ? p : acc),
-    forecast[0] ?? { dateMs: initialTodayMs, balance: 0 },
-  );
-  const last = forecast[forecast.length - 1] ?? min;
+  // Forecast slice for the chart: focus on visible month ±15 days for context
+  const chartSlice = useMemo(() => {
+    const start = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1).getTime();
+    const end = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getTime();
+    const padMs = 7 * 86_400_000;
+    return forecast.filter(
+      (p) => p.dateMs >= start - padMs && p.dateMs <= end + padMs,
+    );
+  }, [forecast, visibleMonth]);
+
+  const monthMin = chartSlice.length
+    ? chartSlice.reduce((acc, p) => (p.balance < acc.balance ? p : acc), chartSlice[0])
+    : { dateMs: initialTodayMs, balance: 0 };
+  const monthLast = chartSlice[chartSlice.length - 1] ?? monthMin;
+
+  const isCurrentMonth = monthOffset === 0;
+  const canPrev = monthOffset > -monthsBack;
+  const canNext = monthOffset < monthsAhead;
 
   return (
     <>
@@ -102,126 +123,182 @@ export function CalendarView({
           {sameDay(selected, today) && (
             <div className="eyebrow text-text-3">СЕГОДНЯ</div>
           )}
+          {selected.getTime() < today.getTime() &&
+            !sameDay(selected, today) && (
+              <div className="eyebrow text-text-3">ФАКТ</div>
+            )}
+          {selected.getTime() > today.getTime() && (
+            <div className="eyebrow text-text-3">ПРОГНОЗ</div>
+          )}
         </div>
         <div className="text-xs text-text-3 mt-2">
           {selectedBalance != null && selectedBalance < 0
             ? "Потребуется пополнить счёт"
             : selectedBalance != null && selectedBalance < 1_000_000
               ? "Низкий остаток"
-              : "Прогноз по планируемым операциям"}
+              : selected.getTime() < today.getTime()
+                ? "Восстановлено по транзакциям"
+                : "Прогноз по планируемым операциям"}
         </div>
       </section>
 
-      <section className="px-4 pt-2 pb-3">
-        <ForecastChart
-          forecast={forecast}
-          selectedMs={selectedMs}
-          onSelect={setSelectedMs}
-        />
-        <div className="flex justify-between mt-2">
-          <div>
-            <div className="eyebrow text-text-3">МИНИМУМ</div>
-            <div className="tabular font-mono text-sm mt-1">
-              <span className={min.balance < 0 ? "text-neg" : ""}>
-                {formatRubles(min.balance)}
-              </span>{" "}
-              · {fmtDate(new Date(min.dateMs))}
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="eyebrow text-text-3">+30 ДН.</div>
-            <div className="tabular font-mono text-sm mt-1">
-              {formatRubles(last.balance)}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {months.map((m, mi) => (
-        <section key={mi} className="px-4 py-1">
-          <div className="eyebrow text-text-3 my-2">
-            {MONTHS_RU_FULL[m.month.getMonth()].toUpperCase()} {m.month.getFullYear()}
-          </div>
-          <div className="grid grid-cols-7 gap-0.5 mb-1">
-            {DOW_RU.map((d) => (
-              <div
-                key={d}
-                className="eyebrow text-[9px] text-text-4 text-center"
-              >
-                {d}
+      {chartSlice.length > 1 && (
+        <section className="px-4 pt-2 pb-3">
+          <ForecastChart
+            forecast={chartSlice}
+            selectedMs={selectedMs}
+            onSelect={setSelectedMs}
+          />
+          <div className="flex justify-between mt-2">
+            <div>
+              <div className="eyebrow text-text-3">МИН. В ОКНЕ</div>
+              <div className="tabular font-mono text-sm mt-1">
+                <span className={monthMin.balance < 0 ? "text-neg" : ""}>
+                  {formatRubles(monthMin.balance)}
+                </span>{" "}
+                · {fmtDate(new Date(monthMin.dateMs))}
               </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-0.5">
-            {m.cells.map((d, i) => {
-              if (!d) return <div key={i} className="h-[42px]" />;
-              const k = dayKey(d);
-              const isToday = sameDay(d, today);
-              const isSel = sameDay(d, selected);
-              const evs = eventsByDay.get(k) ?? [];
-              const hasIncome = evs.some(
-                (e) => e.kind === "user" && e.transactionType === "income",
-              );
-              const hasExpense = evs.some(
-                (e) =>
-                  e.kind === "user" &&
-                  (e.transactionType === "expense" ||
-                    e.transactionType === "transfer" ||
-                    e.transactionType === "loanPayment"),
-              );
-              const bal = forecastByDay.get(k);
-              const isLow = bal != null && bal < 1_000_000;
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setSelectedMs(d.getTime())}
-                  className={cn(
-                    "h-[42px] font-mono text-left p-1 border rounded-[var(--radius-sm)] flex flex-col justify-between",
-                    isSel
-                      ? "bg-primary border-primary"
-                      : isLow
-                        ? "border-hairline bg-neg/10"
-                        : "border-hairline bg-transparent",
-                    isToday && !isSel && "border-primary",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "text-[11px]",
-                      isSel
-                        ? "text-[var(--accent-ink)]"
-                        : isToday
-                          ? "text-primary"
-                          : "text-foreground",
-                    )}
-                  >
-                    {d.getDate()}
-                  </span>
-                  <div className="flex gap-0.5 justify-center">
-                    {hasIncome && (
-                      <div
-                        className={cn(
-                          "size-1 rounded-full",
-                          isSel ? "bg-[var(--accent-ink)]" : "bg-pos",
-                        )}
-                      />
-                    )}
-                    {hasExpense && (
-                      <div
-                        className={cn(
-                          "size-1 rounded-full",
-                          isSel ? "bg-[var(--accent-ink)]" : "bg-neg",
-                        )}
-                      />
-                    )}
-                  </div>
-                </button>
-              );
-            })}
+            </div>
+            <div className="text-right">
+              <div className="eyebrow text-text-3">КОНЕЦ ОКНА</div>
+              <div className="tabular font-mono text-sm mt-1">
+                {formatRubles(monthLast.balance)}
+              </div>
+            </div>
           </div>
         </section>
-      ))}
+      )}
+
+      <section className="px-4 py-1">
+        <div className="flex items-center justify-between my-2">
+          <button
+            type="button"
+            disabled={!canPrev}
+            onClick={() => setMonthOffset((o) => o - 1)}
+            className={cn(
+              "p-1 rounded-[var(--radius-sm)]",
+              canPrev ? "text-foreground hover:bg-surface" : "text-text-4",
+            )}
+            aria-label="Предыдущий месяц"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="eyebrow text-foreground">
+              {MONTHS_RU_FULL[visibleMonth.getMonth()].toUpperCase()}{" "}
+              {visibleMonth.getFullYear()}
+            </div>
+            {!isCurrentMonth && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMonthOffset(0);
+                  setSelectedMs(initialTodayMs);
+                }}
+                className="eyebrow text-text-3 underline-offset-2 hover:underline"
+              >
+                К сегодня
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            disabled={!canNext}
+            onClick={() => setMonthOffset((o) => o + 1)}
+            className={cn(
+              "p-1 rounded-[var(--radius-sm)]",
+              canNext ? "text-foreground hover:bg-surface" : "text-text-4",
+            )}
+            aria-label="Следующий месяц"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-0.5 mb-1">
+          {DOW_RU.map((d) => (
+            <div
+              key={d}
+              className="eyebrow text-[9px] text-text-4 text-center"
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-0.5">
+          {monthCells.map((d, i) => {
+            if (!d) return <div key={i} className="h-[42px]" />;
+            const k = dayKey(d);
+            const isToday = sameDay(d, today);
+            const isSel = sameDay(d, selected);
+            const isPastDay = d.getTime() < today.getTime() && !isToday;
+            const evs = eventsByDay.get(k) ?? [];
+            const hasIncome = evs.some(
+              (e) =>
+                e.transactionType === "income" ||
+                (e.kind === "fact" && e.transactionType === "income"),
+            );
+            const hasExpense = evs.some(
+              (e) =>
+                e.transactionType === "expense" ||
+                e.transactionType === "transfer" ||
+                e.transactionType === "loanPayment",
+            );
+            const bal = forecastByDay.get(k);
+            const isLow = bal != null && bal < 1_000_000;
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setSelectedMs(d.getTime())}
+                className={cn(
+                  "h-[42px] font-mono text-left p-1 border rounded-[var(--radius-sm)] flex flex-col justify-between",
+                  isSel
+                    ? "bg-primary border-primary"
+                    : isLow
+                      ? "border-hairline bg-neg/10"
+                      : isPastDay
+                        ? "border-hairline bg-surface/50"
+                        : "border-hairline bg-transparent",
+                  isToday && !isSel && "border-primary",
+                )}
+              >
+                <span
+                  className={cn(
+                    "text-[11px]",
+                    isSel
+                      ? "text-[var(--accent-ink)]"
+                      : isToday
+                        ? "text-primary"
+                        : isPastDay
+                          ? "text-text-3"
+                          : "text-foreground",
+                  )}
+                >
+                  {d.getDate()}
+                </span>
+                <div className="flex gap-0.5 justify-center">
+                  {hasIncome && (
+                    <div
+                      className={cn(
+                        "size-1 rounded-full",
+                        isSel ? "bg-[var(--accent-ink)]" : "bg-pos",
+                      )}
+                    />
+                  )}
+                  {hasExpense && (
+                    <div
+                      className={cn(
+                        "size-1 rounded-full",
+                        isSel ? "bg-[var(--accent-ink)]" : "bg-neg",
+                      )}
+                    />
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       <section className="px-4 pt-3 pb-6">
         <div className="eyebrow text-text-3 mb-2">
@@ -245,6 +322,14 @@ export function CalendarView({
                 e.kind === "cc_statement" || e.kind === "cc_due"
                   ? "—"
                   : `${isIncome ? "+" : "−"}${formatRubles(e.amount)}`;
+              const subtitle =
+                e.kind === "fact"
+                  ? "ФАКТ"
+                  : e.kind === "user"
+                    ? "ЗАПЛАНИРОВАНО"
+                    : e.kind === "cc_statement"
+                      ? "СЛУЖЕБНОЕ"
+                      : "ДЕДЛАЙН";
               return (
                 <div
                   key={`${e.sourceId}-${i}`}
@@ -255,12 +340,10 @@ export function CalendarView({
                     title={label}
                     subtitle={
                       <span className="text-text-4">
-                        {e.kind === "user"
-                          ? "ЗАПЛАНИРОВАНО"
-                          : e.kind === "cc_statement"
-                            ? "СЛУЖЕБНОЕ"
-                            : "ДЕДЛАЙН"}
-                        {accountNames[e.accountId] ? ` · ${accountNames[e.accountId]}` : ""}
+                        {subtitle}
+                        {accountNames[e.accountId]
+                          ? ` · ${accountNames[e.accountId]}`
+                          : ""}
                       </span>
                     }
                     trailingTop={

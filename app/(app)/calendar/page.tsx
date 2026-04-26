@@ -1,17 +1,21 @@
-import { addDays, startOfDay } from "date-fns";
+import { addDays, addMonths, startOfDay, startOfMonth } from "date-fns";
 import { Header, BackLink } from "@/components/ui/header";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { listAccounts } from "@/lib/db/accounts";
 import { listEvents, loadFactLookup } from "@/lib/db/events";
+import { listTransactionsByRange } from "@/lib/db/transactions";
 import {
-  forecast,
+  forecastDailySeries,
   resolveUserEvents,
   expandCreditCardAutoEvents,
   type AccountLite,
   type ScheduledEventLite,
 } from "@/lib/engines/forecast";
 import { CalendarView } from "./calendar-view";
+
+const MONTHS_AHEAD = 12;
+const MONTHS_BACK = 12;
 
 export default async function CalendarPage() {
   const user = await requireUser();
@@ -26,7 +30,8 @@ export default async function CalendarPage() {
   );
 
   const today = startOfDay(new Date());
-  const horizon = addDays(today, 60);
+  const futureHorizon = addMonths(startOfMonth(today), MONTHS_AHEAD + 1);
+  const pastFloor = addMonths(startOfMonth(today), -MONTHS_BACK);
 
   const accountLites: AccountLite[] = accounts.map((a) => ({
     id: a.id,
@@ -45,30 +50,91 @@ export default async function CalendarPage() {
     isActive: e.isActive,
   }));
 
-  // Build a day-by-day balance series for the primary debit account
   const mainDebit = accounts.find((a) => a.type === "debit");
+
+  // Future: per-day balance series via single-pass simulation
+  const futureDays = Math.ceil(
+    (futureHorizon.getTime() - today.getTime()) / 86_400_000,
+  );
+  const dailySeries = forecastDailySeries({
+    accounts: accountLites,
+    events: eventLites,
+    facts,
+    today,
+    days: futureDays,
+  });
+
+  // Past: reconstruct historical balance for the main debit by walking back
+  // from current balance, undoing transactions day-by-day.
+  const pastTransactions = mainDebit
+    ? await listTransactionsByRange(
+        db,
+        user.id,
+        pastFloor.getTime(),
+        today.getTime(),
+      )
+    : [];
+
+  // Future series for main debit
   const series: { dateMs: number; balance: number }[] = [];
   if (mainDebit) {
-    for (let i = 0; i <= 60; i++) {
-      const target = addDays(today, i);
-      const r = forecast({
-        accounts: accountLites,
-        events: eventLites,
-        facts,
-        today,
-        targetDate: target,
+    // historical: start from today balance, walk back
+    const txByDay = new Map<string, number>(); // delta on this day
+    for (const t of pastTransactions) {
+      const dt = startOfDay(t.date);
+      const k = dt.getTime();
+      let delta = 0;
+      // sign for mainDebit account
+      if (t.accountId === mainDebit.id) {
+        if (t.type === "income" || t.type === "interest") delta += t.amount;
+        else if (t.type === "expense") delta -= t.amount;
+      }
+      if (t.fromAccountId === mainDebit.id) delta -= t.amount;
+      if (t.toAccountId === mainDebit.id) delta += t.amount;
+      txByDay.set(k, (txByDay.get(k) ?? 0) + delta);
+    }
+    let bal = mainDebit.balance;
+    const todayMs = today.getTime();
+    // today is included as a reference point with current balance
+    const pastPoints: { dateMs: number; balance: number }[] = [];
+    let cursor = today;
+    while (cursor.getTime() >= pastFloor.getTime()) {
+      pastPoints.push({ dateMs: cursor.getTime(), balance: bal });
+      // step back one day; remove that day's deltas to get prior-day balance
+      const prev = addDays(cursor, -1);
+      const deltaToday = txByDay.get(cursor.getTime()) ?? 0;
+      bal = bal - deltaToday;
+      cursor = prev;
+      if (cursor.getTime() < pastFloor.getTime()) break;
+    }
+    pastPoints.reverse(); // oldest -> today
+    // future from today+1 onward
+    for (const p of pastPoints) series.push(p);
+    for (let i = 1; i < dailySeries.length; i++) {
+      const pt = dailySeries[i];
+      series.push({
+        dateMs: pt.dateMs,
+        balance: pt.balances[mainDebit.id] ?? 0,
       });
-      series.push({ dateMs: target.getTime(), balance: r.balances.get(mainDebit.id) ?? 0 });
     }
   }
 
-  // Day-level events (user + cc auto) in the 60-day window
-  const userEvs = resolveUserEvents(eventLites, facts, today, horizon);
-  const ccEvs = expandCreditCardAutoEvents(accountLites, today, horizon);
+  // Future events on day-level (user + cc auto) for visualization
+  const futureUserEvs = resolveUserEvents(
+    eventLites,
+    facts,
+    today,
+    futureHorizon,
+  );
+  const futureCcEvs = expandCreditCardAutoEvents(
+    accountLites,
+    today,
+    futureHorizon,
+  );
   const eventMap = new Map<string, { title: string | null }>();
   for (const e of events) eventMap.set(e.id, { title: e.title });
 
-  const payload = [...userEvs, ...ccEvs].map((e) => ({
+  const futurePayload = [...futureUserEvs, ...futureCcEvs].map((e) => ({
     sourceId: e.sourceId,
     date: e.date.getTime(),
     amount: e.amount,
@@ -76,6 +142,20 @@ export default async function CalendarPage() {
     accountId: e.accountId,
     kind: e.kind,
     title: eventMap.get(e.sourceId)?.title ?? null,
+    isPast: false,
+  }));
+
+  // Past: emit each transaction as a "day event" so the calendar can mark dots.
+  const pastPayload = pastTransactions.map((t) => ({
+    sourceId: t.id,
+    date: t.date.getTime(),
+    amount: t.amount,
+    transactionType: t.type as string,
+    accountId:
+      t.accountId ?? t.fromAccountId ?? t.toAccountId ?? "",
+    kind: "fact" as const,
+    title: t.title,
+    isPast: true,
   }));
 
   const accountNames = Object.fromEntries(accounts.map((a) => [a.id, a.name]));
@@ -92,9 +172,11 @@ export default async function CalendarPage() {
         <CalendarView
           initialTodayMs={today.getTime()}
           forecast={series}
-          events={payload}
+          events={[...pastPayload, ...futurePayload]}
           accountNames={accountNames}
           accounts={accountsForForm}
+          monthsAhead={MONTHS_AHEAD}
+          monthsBack={MONTHS_BACK}
         />
       </main>
     </>

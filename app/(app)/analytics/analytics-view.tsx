@@ -137,7 +137,7 @@ export function AnalyticsView({
                     axisLine={false}
                   />
                   <Tooltip
-                    formatter={(v: number) => formatRubles(v)}
+                    formatter={(v) => formatRubles(Number(v))}
                     contentStyle={{
                       background: "var(--surface)",
                       border: "1px solid var(--hairline)",
@@ -171,8 +171,8 @@ export function AnalyticsView({
                     dataKey="dateMs"
                     type="number"
                     domain={["dataMin", "dataMax"]}
-                    tickFormatter={(v: number) =>
-                      new Date(v).toLocaleDateString("ru-RU", {
+                    tickFormatter={(v) =>
+                      new Date(Number(v)).toLocaleDateString("ru-RU", {
                         day: "numeric",
                         month: "short",
                       })
@@ -190,10 +190,8 @@ export function AnalyticsView({
                     axisLine={false}
                   />
                   <Tooltip
-                    labelFormatter={(v: number) =>
-                      fmtDate(new Date(v), { long: true })
-                    }
-                    formatter={(v: number) => formatRubles(v)}
+                    labelFormatter={(v) => fmtDate(new Date(Number(v)), { long: true })}
+                    formatter={(v) => formatRubles(Number(v))}
                     contentStyle={{
                       background: "var(--surface)",
                       border: "1px solid var(--hairline)",
@@ -242,7 +240,7 @@ export function AnalyticsView({
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(v: number) => formatRubles(v)}
+                      formatter={(v) => formatRubles(Number(v))}
                       contentStyle={{
                         background: "var(--surface)",
                         border: "1px solid var(--hairline)",

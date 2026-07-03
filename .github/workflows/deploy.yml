@@ -1,0 +1,48 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - claude/finance-web-app-50hMJ
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Sign and call /__deploy
+        env:
+          CONTROL_SECRET: ${{ secrets.CONTROL_SECRET }}
+          CONTROL_BASE: ${{ secrets.CONTROL_BASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CONTROL_SECRET:-}" ] || [ -z "${CONTROL_BASE:-}" ]; then
+            echo "::error::CONTROL_SECRET or CONTROL_BASE secret is missing"
+            exit 1
+          fi
+          method=POST
+          path=/__deploy
+          body=""
+          ts=$(date +%s)
+          body_hash=$(printf '%s' "$body" | sha256sum | cut -d' ' -f1)
+          sig=$(printf '%s\n%s\n%s\n%s' "$method" "$path" "$ts" "$body_hash" \
+            | openssl dgst -sha256 -hmac "$CONTROL_SECRET" -hex \
+            | sed 's/^.* //')
+          echo "Calling ${CONTROL_BASE}${path} (ts=$ts)"
+          http_code=$(curl -sS --max-time 1500 -o response.json -w '%{http_code}' \
+            -X POST \
+            -H "X-Timestamp: $ts" \
+            -H "X-Signature: $sig" \
+            --data-binary "$body" \
+            "${CONTROL_BASE}${path}")
+          echo "HTTP $http_code"
+          echo "--- response ---"
+          cat response.json || true
+          echo
+          echo "--- end response ---"
+          [ "$http_code" = "200" ]

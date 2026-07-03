@@ -1,0 +1,15 @@
+{$DOMAIN} {
+    encode gzip zstd
+
+    @control path /__ping /__ps /__deploy /__restart /__exec /__logs/*
+    handle @control {
+        reverse_proxy control:9999
+    }
+
+    reverse_proxy app:3000
+
+    log {
+        output stdout
+        format console
+    }
+}

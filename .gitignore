@@ -51,3 +51,6 @@ next-env.d.ts
 # drizzle migration snapshots cache (keep generated SQL, ignore meta)
 /drizzle/meta/
 
+
+# Публичные корневые сертификаты Минцифры для iOS-браузера (не ключи)
+!ios/Veil/Veil/Resources/Certificates/*.pem
